@@ -39,7 +39,6 @@ contract TTTChannel {
 
     function challenge(address _opponent) external {
         // TODO: Players can only play each other once per day
-        // require(once per day)
         emit ChallengeMade(msg.sender, _opponent, msg.sender, _opponent, games.length);
         games.push(Game(msg.sender, _opponent, now, 0x0, 0, 0x0, 0x0, [0, 0, 0, 0, 0, 0, 0, 0, 0]));
     }
@@ -50,7 +49,7 @@ contract TTTChannel {
 
         require(_game.challenged == keccak256(_gameSig).recover(_gameOverSig));
 
-        address _challenger = getSignerOfGameHash(_gameId, _moves, _winner, _gameSig);
+        address _challenger = getSignerOfGameHash(_gameId, _moves, _gameSig);
         require(_challenger == _game.challenger);
 
         _game.winner = _winner;
@@ -59,7 +58,8 @@ contract TTTChannel {
         // emit Event
     }
 
-    function timeout(uint256 _gameId, uint8[9] _moves) external {
+    // TODO: challenger can't timeout unless there's a signed game with a move from the challenged
+    function timeout(uint256 _gameId, uint8[9] _moves, bytes _gameSig) external {
         Game storage _game = games[_gameId];
         require(_game.timeout == 0); // not already timing out
 
@@ -71,6 +71,13 @@ contract TTTChannel {
             _game.waiting = _game.challenged;
         } else {
             revert(); // only the players can call timeout
+        }
+
+        if (_gameSig.length == 0) {
+            // TODO: revert unless its the challenged
+        } else {
+            address _challenger = getSignerOfGameHash(_gameId, _moves, _gameSig);
+            require(_challenger == _game.challenger);
         }
 
         _game.moves = _moves; // validate moves
@@ -102,13 +109,13 @@ contract TTTChannel {
         // emit Event
     }
 
-    function getSignerOfGameHash(uint256 _gameId, uint8[9] _moves, address _winner, bytes _gameSigned) public view returns (address) {
-        bytes32 _gameHash = generateGameHash(_gameId, _moves, _winner);
+    function getSignerOfGameHash(uint256 _gameId, uint8[9] _moves, bytes _gameSigned) public pure returns (address) {
+        bytes32 _gameHash = generateGameHash(_gameId, _moves);
         return _gameHash.recover(_gameSigned);
     }
 
-    function generateGameHash(uint256 _gameId, uint8[9] _moves, address _winner) public view returns (bytes32) {
-        return keccak256(games[_gameId].challenged, _moves, _winner, _gameId);
+    function generateGameHash(uint256 _gameId, uint8[9] _moves) public pure returns (bytes32) {
+        return keccak256(_moves, _gameId);
     }
 
     function generateKeccak256(bytes _message) public pure returns (bytes32) {

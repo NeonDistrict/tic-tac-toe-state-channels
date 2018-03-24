@@ -10,8 +10,8 @@ contract('TTTChannel', function([_, challenger, challenged]) {
 
     let privateKeys = {};
     // These need to be changed every time ganache is restarted. They are the 2nd and 3rd private keys.
-    privateKeys[challenger] = '0xc2acccc51ed58ba9326f5b0bd0247a461ddff9e782f7e8d40c1bf6c635e62586';
-    privateKeys[challenged] = '0xf8693d08cf31c71244865d48360d4b0239a7cc798c49ac514f060fa64e6ab5da';
+    privateKeys[challenger] = '0xcdd5d32a7359cceb12ca0bb862aa1ba74a16ba20e6239038f3fda6670ff4b74b';
+    privateKeys[challenged] = '0xdc13a7b4567f6a451311ce25595eb513d8ee94bb19a90d1155dcdb8d380e4ec7';
 
     beforeEach(async () => {
         const ecrecovery = await ECRecovery.new();
@@ -33,10 +33,10 @@ contract('TTTChannel', function([_, challenger, challenged]) {
 
     it("should complete a game when both players sign off on it", async () => {
         let moves = [7, 1, 4, 2, 5, 3]; // challenger wins
-        let hash = await channel.generateGameHash(0, moves, challenger);
+        let hash = await channel.generateGameHash(0, moves);
         let gameSig = signMsg(hash, privateKeys[challenger])
 
-        assert.equal(await channel.getSignerOfGameHash(0, moves, challenger, gameSig), challenger);
+        assert.equal(await channel.getSignerOfGameHash(0, moves, gameSig), challenger);
 
         const gameHash = await channel.generateKeccak256(gameSig);
         const gameOverSig = signMsg(gameHash, privateKeys[challenged]);
@@ -56,7 +56,10 @@ contract('TTTChannel', function([_, challenger, challenged]) {
     it("should allow game to be put in timeout by one player and then continued by other player", async () => {
         let moves = [1]; // challenger never moves
 
-        await channel.timeout(0, moves, {from: challenged});
+        let hash = await channel.generateGameHash(0, moves);
+        let gameSig = signMsg(hash, privateKeys[challenger])
+
+        await channel.timeout(0, moves, gameSig, {from: challenged});
 
         let game = await channel.games(0);
         assert.equal(game[4], now() + tenMinutes); // timeout
@@ -79,7 +82,7 @@ contract('TTTChannel', function([_, challenger, challenged]) {
     it("should allow game to be put in timeout and then eventually closed out", async () => {
         let moves = []; // challenged never moves
 
-        await channel.timeout(0, moves, {from: challenger});
+        await channel.timeout(0, moves, '', {from: challenger});
 
         increaseTime(tenMinutes+1);
 
