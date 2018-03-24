@@ -10,8 +10,8 @@ contract('TTTChannel', function([_, challenger, challenged]) {
 
     let privateKeys = {};
     // These need to be changed every time ganache is restarted. They are the 2nd and 3rd private keys.
-    privateKeys[challenger] = '0xcdd5d32a7359cceb12ca0bb862aa1ba74a16ba20e6239038f3fda6670ff4b74b';
-    privateKeys[challenged] = '0xdc13a7b4567f6a451311ce25595eb513d8ee94bb19a90d1155dcdb8d380e4ec7';
+    privateKeys[challenger] = '0x2cfacddfdbe0e57bf2c0da5bcf368ebb83525f3f9c5d0c76f5c3421b2f1da708';
+    privateKeys[challenged] = '0x6d64e9d9004185cfae85c4d76d8f8aa3205a4e606d0b7fc35930c3680963a189';
 
     beforeEach(async () => {
         const ecrecovery = await ECRecovery.new();
@@ -57,7 +57,7 @@ contract('TTTChannel', function([_, challenger, challenged]) {
         let moves = [1]; // challenger never moves
 
         let hash = await channel.generateGameHash(0, moves);
-        let gameSig = signMsg(hash, privateKeys[challenger])
+        let gameSig = signMsg(hash, privateKeys[challenged])
 
         await channel.timeout(0, moves, gameSig, {from: challenged});
 
@@ -80,9 +80,12 @@ contract('TTTChannel', function([_, challenger, challenged]) {
     });
 
     it("should allow game to be put in timeout and then eventually closed out", async () => {
-        let moves = []; // challenged never moves
+        let moves = [1, 5]; // challenged too slow
 
-        await channel.timeout(0, moves, '', {from: challenger});
+        let hash = await channel.generateGameHash(0, moves);
+        let gameSig = signMsg(hash, privateKeys[challenger])
+
+        await channel.timeout(0, moves, gameSig, {from: challenger});
 
         increaseTime(tenMinutes+1);
 

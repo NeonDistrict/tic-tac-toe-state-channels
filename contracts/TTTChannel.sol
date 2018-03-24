@@ -19,7 +19,7 @@ contract TTTChannel {
         uint256 timeout;
         address inactive;
         address waiting;
-        uint8[9] moves;
+        uint8[] moves;
     }
 
     // The moves array is the sequence of moves in the game. Each move is
@@ -40,11 +40,11 @@ contract TTTChannel {
     function challenge(address _opponent) external {
         // TODO: Players can only play each other once per day
         emit ChallengeMade(msg.sender, _opponent, msg.sender, _opponent, games.length);
-        games.push(Game(msg.sender, _opponent, now, 0x0, 0, 0x0, 0x0, [0, 0, 0, 0, 0, 0, 0, 0, 0]));
+        games.push(Game(msg.sender, _opponent, now, 0x0, 0, 0x0, 0x0, new uint8[](0)));
     }
 
     // TODO: validate moves... validate winner?
-    function gameOver(uint256 _gameId, uint8[9] _moves, address _winner, bytes _gameSig, bytes _gameOverSig) external {
+    function gameOver(uint256 _gameId, uint8[] _moves, address _winner, bytes _gameSig, bytes _gameOverSig) external {
         Game storage _game = games[_gameId];
 
         require(_game.challenged == keccak256(_gameSig).recover(_gameOverSig));
@@ -55,38 +55,36 @@ contract TTTChannel {
         _game.winner = _winner;
         _game.moves = _moves;
 
-        // emit Event
+        // TODO emit Event
     }
 
     // TODO: challenger can't timeout unless there's a signed game with a move from the challenged
-    function timeout(uint256 _gameId, uint8[9] _moves, bytes _gameSig) external {
+    function timeout(uint256 _gameId, uint8[] _moves, bytes _gameSig) external {
         Game storage _game = games[_gameId];
         require(_game.timeout == 0); // not already timing out
 
         if (msg.sender == _game.challenger) {
             _game.inactive = _game.challenged;
             _game.waiting = _game.challenger;
+            require(_moves.length % 2 == 0);
         } else if (msg.sender == _game.challenged) {
             _game.inactive = _game.challenger;
             _game.waiting = _game.challenged;
+            require(_moves.length % 2 == 1);
         } else {
             revert(); // only the players can call timeout
         }
 
-        if (_gameSig.length == 0) {
-            // TODO: revert unless its the challenged
-        } else {
-            address _challenger = getSignerOfGameHash(_gameId, _moves, _gameSig);
-            require(_challenger == _game.challenger);
-        }
+        // TODO validate that the stored moves match up
+        require(msg.sender == getSignerOfGameHash(_gameId, _moves, _gameSig));
 
-        _game.moves = _moves; // validate moves
+        _game.moves = _moves; // TODO validate moves
         _game.timeout = now + TIMEOUT;
 
-        // emit Event so the other player can be notified
+        // TODO emit Event so the other player can be notified
     }
 
-    function cancelTimeout(uint256 _gameId, uint8[9] _moves) external {
+    function cancelTimeout(uint256 _gameId, uint8[] _moves) external {
         Game storage _game = games[_gameId];
         require(_game.inactive == msg.sender);
         require(_game.timeout > now);
@@ -96,7 +94,7 @@ contract TTTChannel {
         _game.inactive = 0x0;
         _game.waiting = 0x0;
 
-        // emit Event so the other player can be notified
+        // TODO emit Event so the other player can be notified
     }
 
     function winByForfeit(uint256 _gameId) external {
@@ -106,15 +104,15 @@ contract TTTChannel {
 
         _game.winner = msg.sender;
 
-        // emit Event
+        // TODO emit Event
     }
 
-    function getSignerOfGameHash(uint256 _gameId, uint8[9] _moves, bytes _gameSigned) public pure returns (address) {
+    function getSignerOfGameHash(uint256 _gameId, uint8[] _moves, bytes _gameSigned) public pure returns (address) {
         bytes32 _gameHash = generateGameHash(_gameId, _moves);
         return _gameHash.recover(_gameSigned);
     }
 
-    function generateGameHash(uint256 _gameId, uint8[9] _moves) public pure returns (bytes32) {
+    function generateGameHash(uint256 _gameId, uint8[] _moves) public pure returns (bytes32) {
         return keccak256(_moves, _gameId);
     }
 
@@ -126,7 +124,7 @@ contract TTTChannel {
         return games.length;
     }
 
-    function gameMoves(uint256 _gameId) external view returns (uint8[9]) {
+    function gameMoves(uint256 _gameId) external view returns (uint8[]) {
         return games[_gameId].moves;
     }
 }
